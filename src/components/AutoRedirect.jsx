@@ -17,10 +17,10 @@ const AutoRedirect = () => {
       if (window.isCreatingUser) {
         return;
       }
-      
+
       if (user) {
         setUser(user);
-        
+
         // Verificar rol del usuario en Firestore
         try {
           const emailQuery = query(
@@ -28,7 +28,7 @@ const AutoRedirect = () => {
             where("email", "==", user.email)
           );
           const emailSnapshot = await getDocs(emailQuery);
-          
+
           if (!emailSnapshot.empty) {
             const userData = emailSnapshot.docs[0].data();
             setUserRole(userData.rol);
@@ -43,7 +43,7 @@ const AutoRedirect = () => {
         setUser(null);
         setUserRole(null);
       }
-      
+
       setLoading(false);
     });
 
@@ -52,10 +52,10 @@ const AutoRedirect = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         backgroundColor: '#222220',
         color: '#ffffff'
@@ -71,7 +71,7 @@ const AutoRedirect = () => {
   }
 
   // Si hay usuario autenticado, redirigir según su rol
-  if (userRole === 'admin') {
+  if (userRole === 'admin' || userRole === 'visor') {
     return <Navigate to="/admin" replace />;
   } else {
     return <Navigate to="/menu" replace />;
