@@ -8,7 +8,7 @@ import VerPedidosTardios from './VerPedidosTardios';
 import VerPedidosProximaSemana from './VerPedidosProximaSemana';
 import './VerPedidos.css';
 
-const VerPedidos = ({ tipo = 'actual' }) => {
+const VerPedidos = ({ tipo = 'actual', readOnly = false }) => {
   // Si el tipo es 'tardio', renderizar el componente VerPedidosTardios
   if (tipo === 'tardio') {
     return <VerPedidosTardios />;
@@ -93,7 +93,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
       const usuariosConPedidos = Array.from(usuarios.values())
         .map(usuario => {
           const pedido = pedidosPorUsuario.get(usuario.id);
-          
+
           // Calcular el precio total basado en los pedidos y la bonificación
           let precioTotal = 0;
           if (pedido) {
@@ -149,7 +149,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
     try {
       const menuRef = doc(db, 'menus', 'menuActual');
       const menuDoc = await getDoc(menuRef);
-      
+
       if (menuDoc.exists()) {
         setMenuData(menuDoc.data());
         setHayMenu(true);
@@ -247,7 +247,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
     try {
       const pedidosRef = collection(db, 'pedidos');
       const pedidosSnapshot = await getDocs(pedidosRef);
-      
+
       if (pedidosSnapshot.empty) {
         setModal({
           isOpen: true,
@@ -261,14 +261,14 @@ const VerPedidos = ({ tipo = 'actual' }) => {
       for (const doc of pedidosSnapshot.docs) {
         await deleteDoc(doc.ref);
       }
-      
+
       setModal({
         isOpen: true,
         title: 'Éxito',
         message: `Se han eliminado ${pedidosSnapshot.size} pedidos correctamente`,
         type: 'success'
       });
-      
+
       await cargarPedidos();
     } catch (error) {
       setModal({
@@ -521,35 +521,35 @@ const VerPedidos = ({ tipo = 'actual' }) => {
 
     // Preparar los datos de contadores para Excel
     let datosContadores = [];
-    
+
     // Mostrar todas las opciones únicas de Firestore en el resumen, agrupadas por tipo base
     const opcionesResumen = Array.from(contadores?.todasLasOpciones?.values() || [])
       .filter(label => !label.toUpperCase().includes('NO PEDIR')) // Filtrar NO PEDIR
       .sort((a, b) => a.localeCompare(b));
-    
+
     // Agrupar menús por tipo base (sin el postre)
     const menusPorTipo = {};
     const totales = { LUNES: 0, MARTES: 0, MIÉRCOLES: 0, JUEVES: 0, VIERNES: 0, TOTAL: 0 };
-    
+
     opcionesResumen.forEach(label => {
       // Extraer el nombre base del menú (antes de "C/")
       const menuBase = label.includes('C/') ? label.split('C/')[0].trim() : label;
-      
+
       // Obtener los contadores para este label específico
       const fila = (contadores?.conteo && contadores.conteo[label]) || { LUNES: 0, MARTES: 0, MIÉRCOLES: 0, JUEVES: 0, VIERNES: 0 };
-      
+
       // Si no existe este tipo base, crearlo
       if (!menusPorTipo[menuBase]) {
         menusPorTipo[menuBase] = { LUNES: 0, MARTES: 0, MIÉRCOLES: 0, JUEVES: 0, VIERNES: 0 };
       }
-      
+
       // Sumar los contadores al tipo base
       menusPorTipo[menuBase].LUNES += fila.LUNES;
       menusPorTipo[menuBase].MARTES += fila.MARTES;
       menusPorTipo[menuBase].MIÉRCOLES += fila.MIÉRCOLES;
       menusPorTipo[menuBase].JUEVES += fila.JUEVES;
       menusPorTipo[menuBase].VIERNES += fila.VIERNES;
-      
+
       // Sumar a los totales generales
       totales.LUNES += fila.LUNES;
       totales.MARTES += fila.MARTES;
@@ -557,12 +557,12 @@ const VerPedidos = ({ tipo = 'actual' }) => {
       totales.JUEVES += fila.JUEVES;
       totales.VIERNES += fila.VIERNES;
     });
-    
+
     // Convertir el objeto agrupado a array para Excel
     Object.entries(menusPorTipo).forEach(([menuBase, conteos]) => {
       const totalFila = conteos.LUNES + conteos.MARTES + conteos.MIÉRCOLES + conteos.JUEVES + conteos.VIERNES;
       totales.TOTAL += totalFila;
-      
+
       datosContadores.push({
         'MENU': menuBase,
         'LUNES': conteos.LUNES,
@@ -638,23 +638,23 @@ const VerPedidos = ({ tipo = 'actual' }) => {
 
     // Crear hojas de etiquetado por día
     const hojasEtiquetado = [];
-    
+
     diasSemana.forEach((dia, indexDia) => {
       const diaFirestore = diasSemanaFirestore[indexDia];
       const datosDelDia = {};
-      
+
       // Recopilar tipos de menú únicos para este día
       const tiposDelDia = new Set();
-      
+
       pedidos.forEach(usuario => {
         if (!usuario.tienePedido) return;
-        
+
         const diaData = usuario[`${dia}Data`];
         if (!diaData || !diaData.pedido || esNoPedir(diaData.pedido)) return;
-        
+
         // Buscar el label correspondiente al value del pedido
         let labelCompleto = null;
-        
+
         // Primero buscar en opcionesMenuCompleto
         const opcionEncontrada = opcionesMenuCompleto.find(opt => opt.value === diaData.pedido);
         if (opcionEncontrada) {
@@ -663,29 +663,29 @@ const VerPedidos = ({ tipo = 'actual' }) => {
           // Si no se encuentra, usar el value convertido a label
           labelCompleto = diaData.pedido.toUpperCase().replace(/_/g, ' ');
         }
-        
+
         if (!labelCompleto) return;
-        
+
         // Extraer el tipo base del menú
         const tipoBase = labelCompleto.includes('C/') ? labelCompleto.split('C/')[0].trim() : labelCompleto;
         tiposDelDia.add(tipoBase);
-        
+
         // Inicializar array si no existe
         if (!datosDelDia[tipoBase]) {
           datosDelDia[tipoBase] = [];
         }
-        
+
         // Agregar el nombre del usuario
         datosDelDia[tipoBase].push(usuario.nombre.toUpperCase());
       });
-      
+
       // Solo crear hoja si hay datos para este día
       if (tiposDelDia.size > 0) {
         const tiposOrdenados = Array.from(tiposDelDia).sort();
-        
+
         // Encontrar la longitud máxima para normalizar el array
         const maxLength = Math.max(...Object.values(datosDelDia).map(arr => arr.length));
-        
+
         // Crear el array para este día
         const arrayDelDia = [];
         for (let i = 0; i < maxLength; i++) {
@@ -695,14 +695,14 @@ const VerPedidos = ({ tipo = 'actual' }) => {
           });
           arrayDelDia.push(fila);
         }
-        
+
         // Crear la hoja de trabajo para este día
         const wsDelDia = XLSX.utils.json_to_sheet(arrayDelDia);
-        
+
         // Configurar anchos de columna
         const wscolsDelDia = tiposOrdenados.map(() => ({ wch: 25 }));
         wsDelDia['!cols'] = wscolsDelDia;
-        
+
         // Guardar la hoja con su nombre
         hojasEtiquetado.push({
           nombre: `Etiquetado ${diaFirestore}`,
@@ -739,7 +739,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
     XLSX.utils.book_append_sheet(wb, wsPedidos, 'Pedidos');
     XLSX.utils.book_append_sheet(wb, wsContadores, 'Resumen');
     XLSX.utils.book_append_sheet(wb, wsBonificaciones, 'Bonificaciones');
-    
+
     // Agregar todas las hojas de etiquetado
     hojasEtiquetado.forEach(({ nombre, hoja }) => {
       XLSX.utils.book_append_sheet(wb, hoja, nombre);
@@ -851,7 +851,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
       const pedidosRef = collection(db, 'pedidos');
       const q = query(pedidosRef, where('uidUsuario', '==', usuario.id), where('tipo', '==', 'actual'));
       const querySnapshot = await getDocs(q);
-      
+
       if (!querySnapshot.empty) {
         const pedidoDoc = querySnapshot.docs[0];
         await deleteDoc(doc(db, 'pedidos', pedidoDoc.id));
@@ -941,7 +941,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
               </button>
             )}
           </div>
-          <button 
+          <button
             className="exportar-btn"
             onClick={exportarAExcel}
           >
@@ -966,7 +966,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
           </thead>
           <tbody>
             {pedidosFiltrados.map((usuario) => (
-              <tr key={usuario.id} className={usuario.tienePedido ? 'clickable-row' : 'sin-pedido clickable-row'} onClick={() => handleRowClick(usuario)}>
+              <tr key={usuario.id} className={usuario.tienePedido ? (readOnly ? '' : 'clickable-row') : (readOnly ? 'sin-pedido' : 'sin-pedido clickable-row')} onClick={() => !readOnly && handleRowClick(usuario)}>
                 <td>{usuario.nombre}</td>
                 <td>{usuario.fecha ? formatearFecha(usuario.fecha) : ''}</td>
                 {diasSemana.map(dia => {
@@ -1022,10 +1022,10 @@ const VerPedidos = ({ tipo = 'actual' }) => {
                             // "NO PEDIR" siempre va primero (cualquier variación)
                             const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
                             const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-                            
+
                             if (aIsNoPedir && !bIsNoPedir) return -1;
                             if (!aIsNoPedir && bIsNoPedir) return 1;
-                            
+
                             // El resto se ordena alfabéticamente
                             return a.trim()
                               .normalize('NFD')
@@ -1039,8 +1039,8 @@ const VerPedidos = ({ tipo = 'actual' }) => {
                               );
                           })
                           ?.map((opcion, idx) => (
-                            <option 
-                              key={idx} 
+                            <option
+                              key={idx}
                               value={opcion.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_')}
                             >
                               {opcion}
@@ -1181,21 +1181,21 @@ const VerPedidos = ({ tipo = 'actual' }) => {
               {(() => {
                 // Agrupar menús por tipo base (sin el postre) para la tabla de resumen
                 const menusPorTipo = {};
-                
+
                 Object.entries(contadores?.conteo || {}).forEach(([categoria, valores]) => {
                   // Filtrar NO PEDIR y FRUTAS
                   if (categoria === 'FRUTAS' || categoria.toUpperCase().includes('NO PEDIR')) {
                     return;
                   }
-                  
+
                   // Extraer el nombre base del menú (antes de "C/")
                   const menuBase = categoria.includes('C/') ? categoria.split('C/')[0].trim() : categoria;
-                  
+
                   // Si no existe este tipo base, crearlo
                   if (!menusPorTipo[menuBase]) {
                     menusPorTipo[menuBase] = { LUNES: 0, MARTES: 0, MIÉRCOLES: 0, JUEVES: 0, VIERNES: 0 };
                   }
-                  
+
                   // Sumar los contadores al tipo base
                   menusPorTipo[menuBase].LUNES += valores.LUNES;
                   menusPorTipo[menuBase].MARTES += valores.MARTES;
@@ -1203,7 +1203,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
                   menusPorTipo[menuBase].JUEVES += valores.JUEVES;
                   menusPorTipo[menuBase].VIERNES += valores.VIERNES;
                 });
-                
+
                 // Convertir a array y calcular totales
                 const filas = Object.entries(menusPorTipo).map(([menuBase, valores]) => ({
                   MENU: menuBase,
@@ -1214,7 +1214,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
                   VIERNES: valores.VIERNES,
                   TOTAL: valores.LUNES + valores.MARTES + valores.MIÉRCOLES + valores.JUEVES + valores.VIERNES
                 }));
-                
+
                 // Ordenar alfabéticamente
                 filas.sort((a, b) =>
                   a.MENU.trim().normalize('NFD').replace(/\u0300-\u036f/g, '').toLowerCase()
@@ -1222,7 +1222,7 @@ const VerPedidos = ({ tipo = 'actual' }) => {
                       b.MENU.trim().normalize('NFD').replace(/\u0300-\u036f/g, '').toLowerCase()
                     )
                 );
-                
+
                 return filas.map(fila => (
                   <tr key={fila.MENU}>
                     <td>{fila.MENU}</td>

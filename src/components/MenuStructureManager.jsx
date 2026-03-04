@@ -5,7 +5,7 @@ import Modal from './Modal';
 import Spinner from './Spinner';
 import './MenuStructureManager.css';
 
-const MenuStructureManager = () => {
+const MenuStructureManager = ({ readOnly = false }) => {
   const [menuStructure, setMenuStructure] = useState({
     opciones: []
   });
@@ -44,21 +44,21 @@ const MenuStructureManager = () => {
     try {
       setLoading(true);
       const structureRef = doc(db, 'config', 'menuStructure');
-      
+
       const estructuraActualizada = JSON.parse(JSON.stringify({
         opciones: menuStructure.opciones
       }));
 
       await setDoc(structureRef, estructuraActualizada);
-      
+
       const docSnap = await getDoc(structureRef);
       if (!docSnap.exists()) {
         throw new Error('No se pudo verificar el guardado');
       }
-      
+
       const datosGuardados = docSnap.data();
       setMenuStructure(datosGuardados);
-      
+
       setMessage({ type: 'success', text: 'Estructura del menú actualizada correctamente' });
     } catch (error) {
       console.error('Error al guardar la estructura:', error);
@@ -79,22 +79,22 @@ const MenuStructureManager = () => {
     try {
       setLoading(true);
       const nuevasOpciones = [...menuStructure.opciones, newOption.trim()];
-      
+
       const nuevoEstado = {
         ...menuStructure,
         opciones: nuevasOpciones
       };
-      
+
       setMenuStructure(nuevoEstado);
-      
+
       const structureRef = doc(db, 'config', 'menuStructure');
       await setDoc(structureRef, nuevoEstado);
-      
+
       const docSnap = await getDoc(structureRef);
       if (!docSnap.exists()) {
         throw new Error('No se pudo verificar el guardado');
       }
-      
+
       setNewOption('');
       setMessage({ type: 'success', text: 'Opción agregada' });
     } catch (error) {
@@ -108,26 +108,26 @@ const MenuStructureManager = () => {
 
   const eliminarOpcion = async (opcion) => {
     if (!window.confirm(`¿Estás seguro de que deseas eliminar la opción "${opcion}"?`)) return;
-    
+
     try {
       setLoading(true);
       const nuevasOpciones = menuStructure.opciones.filter(o => o !== opcion);
-      
+
       const nuevoEstado = {
         ...menuStructure,
         opciones: nuevasOpciones
       };
-      
+
       setMenuStructure(nuevoEstado);
-      
+
       const structureRef = doc(db, 'config', 'menuStructure');
       await setDoc(structureRef, nuevoEstado);
-      
+
       const docSnap = await getDoc(structureRef);
       if (!docSnap.exists()) {
         throw new Error('No se pudo verificar el guardado');
       }
-      
+
       setMessage({ type: 'success', text: 'Opción eliminada' });
     } catch (error) {
       console.error('Error al eliminar opción:', error);
@@ -145,7 +145,7 @@ const MenuStructureManager = () => {
   return (
     <div className="menu-structure-manager">
       <h2>Gestionar Estructura del Menú</h2>
-      
+
       {message.text && (
         <div className={`message ${message.type}`}>
           {message.text}
@@ -158,34 +158,40 @@ const MenuStructureManager = () => {
           {menuStructure.opciones.map((opcion, index) => (
             <div key={index} className="option-item">
               <span>{opcion}</span>
-              <button 
-                className="delete-option" 
-                onClick={() => eliminarOpcion(opcion)}
-              >
-                🗑️
-              </button>
+              {!readOnly && (
+                <button
+                  className="delete-option"
+                  onClick={() => eliminarOpcion(opcion)}
+                >
+                  🗑️
+                </button>
+              )}
             </div>
           ))}
         </div>
-        
-        <div className="add-option">
-          <input
-            type="text"
-            value={newOption}
-            onChange={(e) => setNewOption(e.target.value)}
-            placeholder="Nueva opción..."
-          />
-          <button onClick={agregarOpcion}>Agregar</button>
-        </div>
+
+        {!readOnly && (
+          <div className="add-option">
+            <input
+              type="text"
+              value={newOption}
+              onChange={(e) => setNewOption(e.target.value)}
+              placeholder="Nueva opción..."
+            />
+            <button onClick={agregarOpcion}>Agregar</button>
+          </div>
+        )}
       </div>
 
-      <button 
-        className="save-button"
-        onClick={guardarEstructura}
-        disabled={loading}
-      >
-        {loading ? 'Guardando...' : 'Guardar Cambios'}
-      </button>
+      {!readOnly && (
+        <button
+          className="save-button"
+          onClick={guardarEstructura}
+          disabled={loading}
+        >
+          {loading ? 'Guardando...' : 'Guardar Cambios'}
+        </button>
+      )}
     </div>
   );
 };

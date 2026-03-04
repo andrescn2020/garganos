@@ -17,10 +17,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
       if (window.isCreatingUser) {
         return;
       }
-      
+
       if (user) {
         setUser(user);
-        
+
         // Verificar rol del usuario en Firestore
         try {
           const emailQuery = query(
@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
             where("email", "==", user.email)
           );
           const emailSnapshot = await getDocs(emailQuery);
-          
+
           if (!emailSnapshot.empty) {
             const userData = emailSnapshot.docs[0].data();
             setUserRole(userData.rol);
@@ -43,7 +43,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
         setUser(null);
         setUserRole(null);
       }
-      
+
       setLoading(false);
     });
 
@@ -52,10 +52,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         backgroundColor: '#222220',
         color: '#ffffff'
@@ -69,16 +69,17 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/" replace />;
   }
 
-  if (requireAdmin && userRole !== 'admin') {
+  if (requireAdmin && userRole !== 'admin' && userRole !== 'visor') {
     return <Navigate to="/menu" replace />;
   }
 
-  // Si NO requiere admin (rutas de usuario) y el usuario ES admin, redirigir a admin
-  if (!requireAdmin && userRole === 'admin') {
+  // Si NO requiere admin (rutas de usuario) y el usuario ES admin o visor, redirigir a admin
+  if (!requireAdmin && (userRole === 'admin' || userRole === 'visor')) {
     return <Navigate to="/admin" replace />;
   }
 
-  return children;
+  // Pasar userRole a los children para que puedan verificar permisos
+  return React.cloneElement(children, { userRole });
 };
 
 export default ProtectedRoute;

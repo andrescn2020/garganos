@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import Modal from './Modal';
 import './PrecioMenu.css';
 
-const PrecioMenu = () => {
+const PrecioMenu = ({ readOnly = false }) => {
   const [precios, setPrecios] = useState({
     precio: '',
     porcentajeBonificacion: '',
@@ -21,13 +21,13 @@ const PrecioMenu = () => {
     try {
       const precioRef = doc(db, 'config', 'precioMenu');
       const precioSnap = await getDoc(precioRef);
-      
+
       if (precioSnap.exists()) {
         const data = precioSnap.data();
         const precio = data.precio ?? 6400;
         const porcentaje = data.porcentajeBonificacion ?? 70;
         const monto = data.montoBonificacion ?? Math.round(precio * porcentaje / 100);
-        
+
         setPrecios({
           precio: precio.toString(),
           porcentajeBonificacion: porcentaje.toString(),
@@ -56,9 +56,9 @@ const PrecioMenu = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     const precio = parseFloat(name === 'precio' ? value : precios.precio) || 0;
-    
+
     let newPrecios = { ...precios, [name]: value };
-    
+
     // Calcular automáticamente según el campo que cambió
     if (name === 'porcentajeBonificacion') {
       const porcentaje = parseFloat(value) || 0;
@@ -74,7 +74,7 @@ const PrecioMenu = () => {
       const monto = Math.round(precio * porcentaje / 100);
       newPrecios.montoBonificacion = monto.toString();
     }
-    
+
     setPrecios(newPrecios);
   };
 
@@ -131,7 +131,7 @@ const PrecioMenu = () => {
 
       const precioRef = doc(db, 'config', 'precioMenu');
       await setDoc(precioRef, nuevosPrecios);
-      
+
       setModal({
         isOpen: true,
         title: 'Éxito',
@@ -167,9 +167,10 @@ const PrecioMenu = () => {
             onChange={handleChange}
             min="0"
             step="100"
+            disabled={readOnly}
           />
         </div>
-        
+
         <div className="precio-input-group">
           <label htmlFor="porcentajeBonificacion">Porcentaje de Bonificación (%):</label>
           <input
@@ -181,6 +182,7 @@ const PrecioMenu = () => {
             min="0"
             max="100"
             step="0.1"
+            disabled={readOnly}
           />
         </div>
 
@@ -194,9 +196,10 @@ const PrecioMenu = () => {
             onChange={handleChange}
             min="0"
             step="100"
+            disabled={readOnly}
           />
         </div>
-        
+
         {/* Mostrar el precio calculado */}
         <div className="precio-preview" style={{
           marginTop: '15px',
@@ -211,13 +214,15 @@ const PrecioMenu = () => {
           <p>• Bonificación: ${precios.montoBonificacion || '0'} ({precios.porcentajeBonificacion || '0'}%)</p>
           <p>• Precio final bonificado: ${calcularPrecioBonificado()}</p>
         </div>
-        
-        <button 
-          className="guardar-precio-btn"
-          onClick={handleGuardarPrecios}
-        >
-          Guardar Precios
-        </button>
+
+        {!readOnly && (
+          <button
+            className="guardar-precio-btn"
+            onClick={handleGuardarPrecios}
+          >
+            Guardar Precios
+          </button>
+        )}
       </div>
       <div className="precio-info" style={{
         marginTop: '20px',
@@ -228,15 +233,15 @@ const PrecioMenu = () => {
         color: '#666'
       }}>
         <p><strong>Importante:</strong> La actualización de los precios del menú debe realizarse luego del cierre semanal (viernes) para asegurar la correcta aplicación en los pedidos de la próxima semana.</p>
-        <div style={{marginTop: '10px'}}>
+        <div style={{ marginTop: '10px' }}>
           <p><strong>Tipos de precios:</strong></p>
-          <ul style={{marginTop: '5px'}}>
+          <ul style={{ marginTop: '5px' }}>
             <li><strong>Costo Menu:</strong> Para usuarios sin bonificación</li>
             <li><strong>Porcentaje de Bonificación:</strong> Descuento aplicado a empleados bonificados</li>
             <li><strong>Monto de Bonificación:</strong> Cantidad fija de descuento en pesos</li>
           </ul>
         </div>
-        <div style={{marginTop: '10px'}}>
+        <div style={{ marginTop: '10px' }}>
           <p><strong>Funcionamiento:</strong> Puedes modificar el porcentaje y automáticamente se calculará el monto, o viceversa. Ambos valores se mantienen sincronizados.</p>
         </div>
       </div>

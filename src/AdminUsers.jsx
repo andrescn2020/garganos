@@ -9,7 +9,7 @@ import "./AdminUsers.css";
 // Flag global para pausar listeners durante creación de usuarios
 window.isCreatingUser = false;
 
-const AdminUsers = ({ mode = "view" }) => {
+const AdminUsers = ({ mode = "view", readOnly = false }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -31,7 +31,7 @@ const AdminUsers = ({ mode = "view" }) => {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
-  
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -45,8 +45,8 @@ const AdminUsers = ({ mode = "view" }) => {
         id: doc.id,
         ...doc.data()
       }))
-      // Filtrar para mostrar solo usuarios no administradores
-      .filter(user => user.rol !== 'admin');
+        // Filtrar para mostrar solo usuarios no administradores
+        .filter(user => user.rol !== 'admin');
       setUsers(userList);
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
@@ -77,7 +77,7 @@ const AdminUsers = ({ mode = "view" }) => {
     try {
       // Activar flag para pausar listeners
       window.isCreatingUser = true;
-      
+
       // Validar que los campos únicos no existan
       await validateUniqueFields(dataToUse);
 
@@ -111,7 +111,7 @@ const AdminUsers = ({ mode = "view" }) => {
         message: 'Usuario creado exitosamente',
         type: 'success'
       });
-      
+
       setFormData({
         email: '',
         password: '',
@@ -133,7 +133,7 @@ const AdminUsers = ({ mode = "view" }) => {
     } catch (error) {
       console.error('Error al crear usuario:', error);
       window.isCreatingUser = false;
-      
+
       setModal({
         isOpen: true,
         title: 'Error',
@@ -146,17 +146,17 @@ const AdminUsers = ({ mode = "view" }) => {
   };
 
   // Removemos las funciones del modal de contraseña ya que no las necesitamos
-  
+
   const validateUniqueFields = async (formData) => {
     const usersRef = collection(db, "users");
-    
+
     // Validar email único
     const emailQuery = query(usersRef, where("email", "==", formData.email));
     const emailSnapshot = await getDocs(emailQuery);
     if (!emailSnapshot.empty) {
       throw new Error("El email ya existe. Por favor, usa un email diferente.");
     }
-    
+
     // Validar usuario único (si se proporciona)
     const usuario = formData.usuario || formData.email.split('@')[0];
     const usuarioQuery = query(usersRef, where("usuario", "==", usuario));
@@ -164,7 +164,7 @@ const AdminUsers = ({ mode = "view" }) => {
     if (!usuarioSnapshot.empty) {
       throw new Error("El nombre de usuario ya existe. Por favor, usa un usuario diferente.");
     }
-    
+
     // Validar legajo único (si se proporciona)
     if (formData.legajo && formData.legajo.trim() !== '') {
       const legajoQuery = query(usersRef, where("legajo", "==", formData.legajo));
@@ -210,23 +210,23 @@ const AdminUsers = ({ mode = "view" }) => {
   const confirmarEliminacion = async (userId) => {
     setModal({ isOpen: false, title: '', message: '', type: 'info' });
     setIsDeletingUser(true);
-    
+
     try {
       // Eliminar documento de Firestore
       await deleteDoc(doc(db, "users", userId));
-      
+
       setModal({
         isOpen: true,
         title: 'Éxito',
         message: 'Usuario eliminado exitosamente.',
         type: 'success'
       });
-      
+
       fetchUsers(); // Actualizar la lista de usuarios
-      
+
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
-      
+
       setModal({
         isOpen: true,
         title: 'Error',
@@ -272,14 +272,16 @@ const AdminUsers = ({ mode = "view" }) => {
     <div className="users-list">
       <div className="users-header">
         <h3>Lista de Usuarios</h3>
-        <button 
-          className="create-user-button"
-          onClick={() => setShowCreateForm(true)}
-        >
-          Crear Nuevo Usuario
-        </button>
+        {!readOnly && (
+          <button
+            className="create-user-button"
+            onClick={() => setShowCreateForm(true)}
+          >
+            Crear Nuevo Usuario
+          </button>
+        )}
       </div>
-      
+
       {loading ? (
         <Spinner />
       ) : (
@@ -297,22 +299,24 @@ const AdminUsers = ({ mode = "view" }) => {
                 <p><strong>Bonificación:</strong> {user.bonificacion ? "Sí" : "No"}</p>
                 {/*<p><strong>Beneficio:</strong> {user.beneficio || "estandar"}</p>*/}
               </div>
-              <div className="user-actions">
-                <button 
-                  className="edit-user-button"
-                  onClick={() => handleEditUser(user.id, user.bonificacion)}
-                  disabled={isEditingUser || user.rol === 'admin'}
-                >
-                  {isEditingUser && editingUserId === user.id ? 'Actualizando...' : 'Cambiar Bonificación'}
-                </button>
-                <button 
-                  className="delete-user-button"
-                  onClick={() => handleDeleteUser(user.id, user.email, user.rol)}
-                  disabled={isDeletingUser || user.rol === 'admin'}
-                >
-                  {isDeletingUser ? 'Eliminando...' : 'Eliminar Usuario'}
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="user-actions">
+                  <button
+                    className="edit-user-button"
+                    onClick={() => handleEditUser(user.id, user.bonificacion)}
+                    disabled={isEditingUser || user.rol === 'admin'}
+                  >
+                    {isEditingUser && editingUserId === user.id ? 'Actualizando...' : 'Cambiar Bonificación'}
+                  </button>
+                  <button
+                    className="delete-user-button"
+                    onClick={() => handleDeleteUser(user.id, user.email, user.rol)}
+                    disabled={isDeletingUser || user.rol === 'admin'}
+                  >
+                    {isDeletingUser ? 'Eliminando...' : 'Eliminar Usuario'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -324,7 +328,7 @@ const AdminUsers = ({ mode = "view" }) => {
     <div className="create-user-form">
       <div className="form-header">
         <h3>Crear Nuevo Usuario</h3>
-        <button 
+        <button
           className="close-form-button"
           onClick={() => {
             setShowCreateForm(false);
@@ -348,7 +352,7 @@ const AdminUsers = ({ mode = "view" }) => {
             disabled={isCreatingUser}
           />
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="password">Contraseña *</label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -413,7 +417,7 @@ const AdminUsers = ({ mode = "view" }) => {
             disabled={isCreatingUser}
           />
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="nombre">Nombre</label>
           <input
@@ -425,7 +429,7 @@ const AdminUsers = ({ mode = "view" }) => {
             disabled={isCreatingUser}
           />
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="apellido">Apellido</label>
           <input
@@ -437,7 +441,7 @@ const AdminUsers = ({ mode = "view" }) => {
             disabled={isCreatingUser}
           />
         </div>
-        
+
         <div className="form-group checkbox-group">
           <label htmlFor="bonificacion">
             <input
@@ -454,7 +458,7 @@ const AdminUsers = ({ mode = "view" }) => {
             Usuario Bonificado
           </label>
         </div>
-        
+
         <button type="submit" className="submit-button" disabled={isCreatingUser}>
           {isCreatingUser ? (
             <>
@@ -479,7 +483,7 @@ const AdminUsers = ({ mode = "view" }) => {
         type={modal.type}
         actions={modal.actions}
       />
-      
+
       {showCreateForm ? renderCreateUserForm() : renderUsersList()}
     </div>
   );

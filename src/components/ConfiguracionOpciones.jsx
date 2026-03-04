@@ -77,7 +77,7 @@ const OPCIONES_DEFAULT = {
   Viernes: OPCIONES_MENU.map(op => op.label)
 };
 
-const ConfiguracionOpciones = () => {
+const ConfiguracionOpciones = ({ readOnly = false }) => {
   const [opciones, setOpciones] = useState(OPCIONES_DEFAULT);
   const [isLoading, setIsLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
@@ -108,19 +108,19 @@ const ConfiguracionOpciones = () => {
         const data = docSnap.data();
         const opcionesFormateadas = {};
         DIAS_SEMANA.forEach(dia => {
-          const opcionesDelDia = Array.isArray(data[dia]) && data[dia].length > 0 
-            ? data[dia] 
+          const opcionesDelDia = Array.isArray(data[dia]) && data[dia].length > 0
+            ? data[dia]
             : OPCIONES_DEFAULT[dia];
-          
+
           // Ordenar alfabéticamente, pero "NO PEDIR" siempre va primero
           const opcionesOrdenadas = opcionesDelDia.sort((a, b) => {
             // "NO PEDIR" siempre va primero
             const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
             const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-            
+
             if (aIsNoPedir && !bIsNoPedir) return -1;
             if (!aIsNoPedir && bIsNoPedir) return 1;
-            
+
             // El resto se ordena alfabéticamente
             return a.trim()
               .normalize('NFD')
@@ -133,7 +133,7 @@ const ConfiguracionOpciones = () => {
                   .toLowerCase()
               );
           });
-          
+
           opcionesFormateadas[dia] = opcionesOrdenadas;
         });
         setOpciones(opcionesFormateadas);
@@ -192,16 +192,16 @@ const ConfiguracionOpciones = () => {
 
     setOpciones(prev => {
       const nuevasOpciones = [...prev[dia], nuevaOpcion[dia]];
-      
+
       // Ordenar alfabéticamente, pero "NO PEDIR" siempre va primero
       const opcionesOrdenadas = nuevasOpciones.sort((a, b) => {
         // "NO PEDIR" siempre va primero
         const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
         const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-        
+
         if (aIsNoPedir && !bIsNoPedir) return -1;
         if (!aIsNoPedir && bIsNoPedir) return 1;
-        
+
         // El resto se ordena alfabéticamente
         return a.trim()
           .normalize('NFD')
@@ -214,7 +214,7 @@ const ConfiguracionOpciones = () => {
               .toLowerCase()
           );
       });
-      
+
       return {
         ...prev,
         [dia]: opcionesOrdenadas
@@ -254,7 +254,7 @@ const ConfiguracionOpciones = () => {
       });
       return;
     }
-    
+
     setEditandoOpcion({
       dia,
       index,
@@ -283,7 +283,7 @@ const ConfiguracionOpciones = () => {
 
     // Verificar si ya existe una opción con ese texto (excluyendo la actual)
     const opcionesActuales = opciones[dia];
-    const opcionExistente = opcionesActuales.find((opcion, i) => 
+    const opcionExistente = opcionesActuales.find((opcion, i) =>
       i !== index && opcion.trim() === editandoOpcion.texto.trim()
     );
 
@@ -300,16 +300,16 @@ const ConfiguracionOpciones = () => {
     setOpciones(prev => {
       const nuevasOpciones = [...prev[dia]];
       nuevasOpciones[index] = editandoOpcion.texto.trim();
-      
+
       // Reordenar alfabéticamente después de la edición
       const opcionesOrdenadas = nuevasOpciones.sort((a, b) => {
         // "NO PEDIR" siempre va primero
         const aIsNoPedir = a.trim().toUpperCase().includes('NO PEDIR');
         const bIsNoPedir = b.trim().toUpperCase().includes('NO PEDIR');
-        
+
         if (aIsNoPedir && !bIsNoPedir) return -1;
         if (!aIsNoPedir && bIsNoPedir) return 1;
-        
+
         // El resto se ordena alfabéticamente
         return a.trim()
           .normalize('NFD')
@@ -322,7 +322,7 @@ const ConfiguracionOpciones = () => {
               .toLowerCase()
           );
       });
-      
+
       return {
         ...prev,
         [dia]: opcionesOrdenadas
@@ -337,27 +337,27 @@ const ConfiguracionOpciones = () => {
       setIsLoading(true);
       const db = getFirestore();
       const configRef = doc(db, 'config', 'opcionesMenu');
-      
+
       // Asegurarse de que todas las opciones sean arrays
       const opcionesFormateadas = {};
       DIAS_SEMANA.forEach(dia => {
         opcionesFormateadas[dia] = Array.isArray(opciones[dia]) ? opciones[dia] : [];
       });
-      
+
       // console.log('Guardando opciones en Firestore:', opcionesFormateadas);
-      
+
       // Guardar en Firestore
       await setDoc(configRef, opcionesFormateadas);
-      
+
       // Verificar que los datos se guardaron correctamente
       const docSnap = await getDoc(configRef);
       if (!docSnap.exists()) {
         throw new Error('No se pudo verificar el guardado');
       }
-      
+
       const datosGuardados = docSnap.data();
       // console.log('Datos guardados en Firestore:', datosGuardados);
-      
+
       setModal({
         isOpen: true,
         title: 'Éxito',
@@ -389,20 +389,22 @@ const ConfiguracionOpciones = () => {
         Estas opciones aparecerán en el formulario de pedidos.
       </p>
 
-      <button 
-        className="guardar-btn"
-        onClick={guardarOpciones}
-        disabled={isLoading}
-        style={{ marginBottom: '2rem' }}
-      >
-        {isLoading ? 'Guardando...' : 'Guardar Configuración'}
-      </button>
+      {!readOnly && (
+        <button
+          className="guardar-btn"
+          onClick={guardarOpciones}
+          disabled={isLoading}
+          style={{ marginBottom: '2rem' }}
+        >
+          {isLoading ? 'Guardando...' : 'Guardar Configuración'}
+        </button>
+      )}
 
       <div className="opciones-grid">
         {DIAS_SEMANA.map(dia => (
           <div key={dia} className="dia-opciones">
             <h3>{dia}</h3>
-            
+
             <div className="opciones-actuales">
               <h4>Opciones Actuales</h4>
               <div className="opciones-lista">
@@ -430,7 +432,7 @@ const ConfiguracionOpciones = () => {
                             fontSize: '0.9rem'
                           }}
                         />
-                        <button 
+                        <button
                           className="guardar-edicion-btn"
                           onClick={() => guardarEdicion(dia, index)}
                           style={{
@@ -446,7 +448,7 @@ const ConfiguracionOpciones = () => {
                         >
                           ✓
                         </button>
-                        <button 
+                        <button
                           className="cancelar-edicion-btn"
                           onClick={cancelarEdicion}
                           style={{
@@ -466,36 +468,38 @@ const ConfiguracionOpciones = () => {
                     ) : (
                       <>
                         <span>{opcion}</span>
-                        <div className="opcion-buttons">
-                          <button 
-                            className="editar-btn"
-                            onClick={() => iniciarEdicion(dia, index, opcion)}
-                            title={opcion.trim().toUpperCase().includes('NO PEDIR') ? "Esta opción no se puede editar" : "Editar esta opción"}
-                            disabled={opcion.trim().toUpperCase().includes('NO PEDIR')}
-                            style={{
-                              background: opcion.trim().toUpperCase().includes('NO PEDIR') ? '#9ca3af' : '#3b82f6',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '0.2rem 0.4rem',
-                              marginRight: '0.3rem',
-                              cursor: opcion.trim().toUpperCase().includes('NO PEDIR') ? 'not-allowed' : 'pointer',
-                              fontSize: '0.7rem',
-                              opacity: opcion.trim().toUpperCase().includes('NO PEDIR') ? 0.5 : 1
-                            }}
-                          >
-                            ✎
-                          </button>
-                          <button 
-                            className="eliminar-btn"
-                            onClick={() => eliminarOpcion(dia, opcion)}
-                            title={opcion === "NO PEDIR" ? "Esta opción no se puede eliminar" : "Eliminar esta opción"}
-                            disabled={opcion === "NO PEDIR"}
-                            style={opcion === "NO PEDIR" ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                          >
-                            ×
-                          </button>
-                        </div>
+                        {!readOnly && (
+                          <div className="opcion-buttons">
+                            <button
+                              className="editar-btn"
+                              onClick={() => iniciarEdicion(dia, index, opcion)}
+                              title={opcion.trim().toUpperCase().includes('NO PEDIR') ? "Esta opción no se puede editar" : "Editar esta opción"}
+                              disabled={opcion.trim().toUpperCase().includes('NO PEDIR')}
+                              style={{
+                                background: opcion.trim().toUpperCase().includes('NO PEDIR') ? '#9ca3af' : '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.2rem 0.4rem',
+                                marginRight: '0.3rem',
+                                cursor: opcion.trim().toUpperCase().includes('NO PEDIR') ? 'not-allowed' : 'pointer',
+                                fontSize: '0.7rem',
+                                opacity: opcion.trim().toUpperCase().includes('NO PEDIR') ? 0.5 : 1
+                              }}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              className="eliminar-btn"
+                              onClick={() => eliminarOpcion(dia, opcion)}
+                              title={opcion === "NO PEDIR" ? "Esta opción no se puede eliminar" : "Eliminar esta opción"}
+                              disabled={opcion === "NO PEDIR"}
+                              style={opcion === "NO PEDIR" ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -503,23 +507,25 @@ const ConfiguracionOpciones = () => {
               </div>
             </div>
 
-            <div className="agregar-opcion">
-              <h4>Agregar Nueva Opción</h4>
-              <div className="input-group">
-                <input
-                  type="text"
-                  value={nuevaOpcion[dia]}
-                  onChange={(e) => handleNuevaOpcion(dia, e.target.value)}
-                  placeholder="Nueva opción..."
-                />
-                <button 
-                  className="agregar-btn"
-                  onClick={() => agregarOpcion(dia)}
-                >
-                  Agregar
-                </button>
+            {!readOnly && (
+              <div className="agregar-opcion">
+                <h4>Agregar Nueva Opción</h4>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    value={nuevaOpcion[dia]}
+                    onChange={(e) => handleNuevaOpcion(dia, e.target.value)}
+                    placeholder="Nueva opción..."
+                  />
+                  <button
+                    className="agregar-btn"
+                    onClick={() => agregarOpcion(dia)}
+                  >
+                    Agregar
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ))}
       </div>

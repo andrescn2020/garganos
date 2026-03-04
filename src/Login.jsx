@@ -57,7 +57,7 @@ const Login = () => {
       );
 
       // Verificar rol y redirigir
-      if (userData.rol === "admin") {
+      if (userData.rol === "admin" || userData.rol === "visor") {
         navigate("/admin");
       } else {
         navigate("/menu");

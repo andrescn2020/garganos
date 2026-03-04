@@ -6,7 +6,7 @@ import Spinner from './Spinner';
 import jsPDF from 'jspdf';
 import './AdminMenu.css';
 
-const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
+const AdminMenu = ({ onMenuDeleted, tipo = 'actual', readOnly = false }) => {
   const [menuData, setMenuData] = useState(null);
   const [menuStructure, setMenuStructure] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +97,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
 
   const generarPDF = () => {
     if (!menuData) return;
-    
+
     setIsGeneratingPDF(true);
     try {
       const pdf = new jsPDF();
@@ -106,13 +106,13 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
       const margin = 20;
       const pageWidth = pdf.internal.pageSize.width;
       const textWidth = pageWidth - (margin * 2);
-      
+
       // Título principal
       pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
       pdf.text('MENÚ SEMANAL', pageWidth / 2, yPosition, { align: 'center' });
       yPosition += lineHeight * 2;
-      
+
       // Información adicional
       if (menuData.temporada) {
         pdf.setFontSize(14);
@@ -120,14 +120,14 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
         pdf.text(menuData.temporada, pageWidth / 2, yPosition, { align: 'center' });
         yPosition += lineHeight * 1.5;
       }
-      
+
       if (menuData.semana) {
         pdf.setFontSize(12);
         pdf.setFont('helvetica', 'normal');
         pdf.text(menuData.semana, pageWidth / 2, yPosition, { align: 'center' });
         yPosition += lineHeight * 2;
       }
-      
+
       // Días del menú
       const dias = [
         { key: 'lunes', nombre: 'LUNES' },
@@ -136,23 +136,23 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
         { key: 'jueves', nombre: 'JUEVES' },
         { key: 'viernes', nombre: 'VIERNES' }
       ];
-      
+
       dias.forEach(dia => {
         const diaData = menuData.dias[dia.key];
         if (!diaData) return;
-        
+
         // Verificar si hay espacio suficiente en la página
         if (yPosition > 250) {
           pdf.addPage();
           yPosition = 20;
         }
-        
+
         // Título del día
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
         pdf.text(dia.nombre, margin, yPosition);
         yPosition += lineHeight * 1.2;
-        
+
         if (diaData.esFeriado) {
           pdf.setFontSize(12);
           pdf.setFont('helvetica', 'normal');
@@ -160,11 +160,11 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
           yPosition += lineHeight * 2;
           return;
         }
-        
+
         // Opciones del menú
         pdf.setFontSize(11);
         pdf.setFont('helvetica', 'normal');
-        
+
         if (menuStructure?.opciones) {
           menuStructure.opciones.forEach(opcion => {
             const opcionKey = opcion.toLowerCase().replace(/ /g, '');
@@ -183,7 +183,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
             }
           });
         }
-        
+
         // Sandwich de miga
         if (diaData.sandwichMiga?.tipo) {
           const text = `Sandwich de Miga: ${diaData.sandwichMiga.tipo} (${diaData.sandwichMiga.cantidad} triángulos)`;
@@ -198,7 +198,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
           });
           yPosition += lineHeight * 0.5;
         }
-        
+
         // Ensalada
         if (diaData.ensaladas?.ensalada1) {
           const text = `Ensalada: ${diaData.ensaladas.ensalada1}`;
@@ -213,7 +213,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
           });
           yPosition += lineHeight * 0.5;
         }
-        
+
         // Postre
         if (diaData.postre) {
           const text = `Postre: ${diaData.postre}`;
@@ -228,10 +228,10 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
           });
           yPosition += lineHeight * 0.5;
         }
-        
+
         yPosition += lineHeight; // Espacio entre días
       });
-      
+
       // Información de última modificación
       if (menuData.ultimaModificacion) {
         if (yPosition > 250) {
@@ -243,7 +243,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
         const fecha = new Date(menuData.ultimaModificacion.toDate()).toLocaleString();
         pdf.text(`Última actualización: ${fecha}`, margin, yPosition);
       }
-      
+
       // Guardar el PDF
       const nombreArchivo = `menu_${tipo === 'actual' ? 'actual' : 'proxima_semana'}_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(nombreArchivo);
@@ -345,7 +345,7 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
         type={modal.type}
         actions={modal.actions}
       />
-      
+
       <div className="admin-header">
         <div className="menu-header">
           <h2>Menú Próxima Semana</h2>
@@ -353,22 +353,24 @@ const AdminMenu = ({ onMenuDeleted, tipo = 'actual' }) => {
           {menuData.semana && <h4>{menuData.semana}</h4>}
         </div>
         <div className="admin-buttons">
-          <button 
+          <button
             className="download-button"
             onClick={generarPDF}
             disabled={isGeneratingPDF}
-            style={{width: '50%'}}
+            style={{ width: readOnly ? '100%' : '50%' }}
           >
             {isGeneratingPDF ? 'Generando...' : '📄 Descargar PDF'}
           </button>
-          <button 
-            className="delete-button"
-            onClick={handleEliminarMenu}
-            disabled={isDeleting}
-            style={{width: '50%'}}
-          >
-            {isDeleting ? 'Eliminando...' : '🗑️ Eliminar Menú'}
-          </button>
+          {!readOnly && (
+            <button
+              className="delete-button"
+              onClick={handleEliminarMenu}
+              disabled={isDeleting}
+              style={{ width: '50%' }}
+            >
+              {isDeleting ? 'Eliminando...' : '🗑️ Eliminar Menú'}
+            </button>
+          )}
         </div>
       </div>
 
