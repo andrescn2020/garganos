@@ -160,9 +160,9 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       minutos
     });*/
 
-    // Si es fin de semana, todos los dÃ­as estÃn disponibles
+    // Si es fin de semana, todos los di­as estan disponibles
     if (diaSemana === 0 || diaSemana === 6) {
-      //console.log('Es fin de semana, todos los dÃ­as disponibles');
+      //console.log('Es fin de semana, todos los di5­as disponibles');
       return true;
     }
 
@@ -304,7 +304,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
 
           }
           setSemanaSeleccionada('proxima');
-          setMensajeTardio('Puedes realizar pedidos tardes para la prÃ³xima semana.');
+          setMensajeTardio('Puedes realizar pedidos tardes para la proxima semana.');
           setEsTardio(true);
           setEsMuyTemprano(false);
         } else {
@@ -1324,7 +1324,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
       )}
 
       {/* Cartel informativo de dÃ­as disponibles */}
-      {!readOnly && tipo === 'actual' && !(diaSemana === 6 || diaSemana === 0) && (
+      {/* {!readOnly && tipo === 'actual' && !(diaSemana === 6 || diaSemana === 0) && (
         <div className="dias-disponibles-alert" style={{
           background: '#f0f9ff',
           border: '1px solid #bae6fd',
@@ -1367,7 +1367,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             })()}
           </p>
         </div>
-      )}
+      )}  */}
 
       {/* Mostrar el menu semanal global */}
       {menuSemanal ? (
@@ -1376,8 +1376,8 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             <div className="menu-semanal-grid">
               {Object.entries(menuSemanal).map(([dia, opciones]) => {
                 const diaLower = dia.toLowerCase();
-                const diaKeyMap = { 'lunes':'lunes','martes':'martes','miercoles':'miercoles','jueves':'jueves','viernes':'viernes' };
-                const diaKey = diaKeyMap[diaLower] || diaLower.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                const diaKeyMap = { 'lunes': 'lunes', 'martes': 'martes', 'miercoles': 'miercoles', 'jueves': 'jueves', 'viernes': 'viernes' };
+                const diaKey = diaKeyMap[diaLower] || diaLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const esFeriado = menuData?.dias[diaKey]?.esFeriado;
                 return (
                   <div key={dia} className="menu-semanal-dia">
@@ -1394,7 +1394,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                         {opciones}
                       </div>
                     )}
-                    {!readOnly && !esFeriado && (() => { const labelMap = {'lunes':'Lunes','martes':'Martes','miercoles':'Miercoles','jueves':'Jueves','viernes':'Viernes'}; return renderDiaFormulario(diaKey, labelMap[diaKey] || dia, diaKey); })()}
+                    {!readOnly && !esFeriado && (() => { const labelMap = { 'lunes': 'Lunes', 'martes': 'Martes', 'miercoles': 'Miercoles', 'jueves': 'Jueves', 'viernes': 'Viernes' }; return renderDiaFormulario(diaKey, labelMap[diaKey] || dia, diaKey); })()}
                   </div>
                 );
               })}
@@ -1442,8 +1442,8 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               {precioTotal > 0
                 ? `(${precioTotal / precioPorDia} dia${precioTotal / precioPorDia > 1 ? 's' : ''} x $${precioPorDia.toLocaleString()})`
                 : userData?.bonificacion
-                   ? 'Menu bonificado (sin costo)'
-                   : 'Selecciona al menos un menu para ver el precio'}
+                  ? 'Menu bonificado (sin costo)'
+                  : 'Selecciona al menos un menu para ver el precio'}
             </p>
           </div>
 
@@ -1477,20 +1477,20 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
             }
 
             // Para tipo 'actual', mostrar el botÃ³n solo si hay dÃ­as disponibles para pedir
-            if (algunDiaSinPedido) {
-              return (
-                <button
-                  type="submit"
-                  className="formulario-boton"
-                  disabled={isSubmitting} /* TEMP: fin de semana habilitado */
-                >
-                  <div className="button-content">
-                    <span>{menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
-                    {isSubmitting && <div className="spinner" />}
-                  </div>
-                </button>
-              );
-            }
+            // if (algunDiaSinPedido) {
+            //   return (
+            //     <button
+            //       type="submit"
+            //       className="formulario-boton"
+            //       disabled={isSubmitting} /* TEMP: fin de semana habilitado */
+            //     >
+            //       <div className="button-content">
+            //         <span>{menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
+            //         {isSubmitting && <div className="spinner" />}
+            //       </div>
+            //     </button>
+            //   );
+            // }
 
             return null;
           })()}

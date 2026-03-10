@@ -118,6 +118,7 @@
   background-color: #1a1a18;
   color: #cccccc;
   width: 100%;
+  box-sizing: border-box;
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -125,6 +126,8 @@
   background-repeat: no-repeat;
   background-position: right 8px center;
   background-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .formulario-select:focus {
@@ -396,14 +399,14 @@
 
 .menu-semanal-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 30px;
 }
 
-@media (max-width: 1200px) {
+@media (min-width: 1600px) {
   .menu-semanal-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 
@@ -428,24 +431,30 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
   /* permite que el contenido se ajuste al ancho */
 }
 
 .menu-semanal-dia-titulo {
   color: #FFA000;
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid #FFA000;
+  word-break: break-word;
 }
 
 .menu-semanal-opciones {
   background-color: #222220;
   border-radius: 8px;
-  padding: 15px;
-  margin-top: 10px;
+  padding: 10px;
+  margin-top: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   border: 1px solid #FFA000;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  font-size: 0.9em;
 }
 
 .menu-opcion {
@@ -760,15 +769,10 @@
   overflow: hidden;
 }
 
-.menu-semanal-opciones {
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-
-/* Asegurar que la card siempre crezca para contener los selects */
-.menu-semanal-dia {
-  display: flex;
-  flex-direction: column;
+/* Asegurar que todos los hijos respeten el ancho de la card */
+.menu-semanal-dia * {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .menu-semanal-dia .menu-semanal-opciones {
