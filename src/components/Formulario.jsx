@@ -783,7 +783,50 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
     const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const menusKey = opcionesCascada?.menus ? (Object.keys(opcionesCascada.menus).find(k => norm(k) === norm(diaLabel)) || diaLabel) : diaLabel;
     const menusList = opcionesCascada?.menus?.[menusKey] || [];
-    const postresList = opcionesCascada?.postres || [];
+    // Obtener los postres según el modo configurado (por día)
+    const postresBase = opcionesCascada?.postres || [];
+    let postresList = postresBase;
+    // postreDesdeMenu puede ser boolean (legacy) u objeto por día { Lunes: true, Viernes: false }
+    const postreDesdeMenuConfig = opcionesCascada?.postreDesdeMenu;
+    let esAutoDia;
+    if (typeof postreDesdeMenuConfig === 'boolean') {
+      esAutoDia = postreDesdeMenuConfig;
+    } else if (typeof postreDesdeMenuConfig === 'object' && postreDesdeMenuConfig !== null) {
+      const matchEntry = Object.entries(postreDesdeMenuConfig).find(([k]) => norm(k) === norm(diaLabel));
+      esAutoDia = matchEntry ? matchEntry[1] : true;
+    } else {
+      esAutoDia = true;
+    }
+
+    if (esAutoDia) {
+      // Modo automático: extraer el postre del día desde el menú
+      const postreRaw = menuData?.dias?.[diaFirestore]?.postre;
+      const postreDelDia = postreRaw
+        ? postreRaw.split('/').map(p => p.trim()).filter(p => {
+            const upper = p.toUpperCase();
+            return !upper.includes('GELATINA') && !upper.includes('YOGURT');
+          })[0] || null
+        : null;
+      // Construir la lista: tomar la base global, reemplazar C/POSTRE si existe,
+      // o agregar el postre del día si C/POSTRE no está en la lista
+      const base = postresBase.length > 0 ? [...postresBase] : ['C/GELATINA', 'C/POSTRE', 'C/YOGURT'];
+      if (postreDelDia) {
+        const postreLabel = `C/${postreDelDia.toUpperCase()}`;
+        if (base.includes('C/POSTRE')) {
+          // Reemplazar C/POSTRE con el nombre real
+          postresList = base.map(p => p === 'C/POSTRE' ? postreLabel : p);
+        } else {
+          // C/POSTRE no está en la lista, agregar el postre del día
+          postresList = [postreLabel, ...base].sort();
+        }
+      } else {
+        postresList = base;
+      }
+    } else if (opcionesCascada?.postresPorDia) {
+      // Modo manual: usar postres configurados por día
+      const postresDiaKey = Object.keys(opcionesCascada.postresPorDia).find(k => norm(k) === norm(diaLabel)) || diaLabel;
+      postresList = opcionesCascada.postresPorDia[postresDiaKey] || postresBase;
+    }
     const bebidasList = opcionesCascada?.bebidas || [];
     return (
       <div key={diaKey} className="formulario-item">

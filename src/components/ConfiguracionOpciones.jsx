@@ -18,7 +18,9 @@ const BEBIDAS_DEFAULT = [
 const buildDefault = () => ({
   menus: Object.fromEntries(DIAS_SEMANA.map(d => [d, [...MENUS_DEFAULT]])),
   postres: [...POSTRES_DEFAULT],
+  postresPorDia: Object.fromEntries(DIAS_SEMANA.map(d => [d, [...POSTRES_DEFAULT]])),
   bebidas: [...BEBIDAS_DEFAULT],
+  postreDesdeMenu: Object.fromEntries(DIAS_SEMANA.map(d => [d, true])),
 });
 
 const DOC_ID = 'opcionesMenuCascada';
@@ -29,8 +31,9 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [activeDia, setActiveDia] = useState('Lunes');
-  const [inputs, setInputs] = useState({ menu: '', postres: '', bebidas: '' });
-  const [editing, setEditing] = useState(null); // { tipo: 'menus'|'postres'|'bebidas', dia?: string, index: number, value: string }
+  const [inputs, setInputs] = useState({ menu: '', postres: '', bebidas: '', postreDia: '' });
+  const [editing, setEditing] = useState(null); // { tipo: 'menus'|'postres'|'bebidas'|'postresPorDia', dia?: string, index: number, value: string }
+  const [activePostreDia, setActivePostreDia] = useState('Lunes');
 
   useEffect(() => { cargar(); }, []);
 
@@ -40,7 +43,21 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
       const ref = doc(db, 'config', DOC_ID);
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        setConfig(snap.data());
+        const data = snap.data();
+        // Migrar: si no tiene postresPorDia, crearlo a partir de postres globales
+        if (!data.postresPorDia) {
+          data.postresPorDia = Object.fromEntries(
+            DIAS_SEMANA.map(d => [d, [...(data.postres || POSTRES_DEFAULT)]])
+          );
+        }
+        // Migrar: si postreDesdeMenu es boolean (viejo), convertir a objeto por día
+        if (typeof data.postreDesdeMenu === 'boolean') {
+          const val = data.postreDesdeMenu;
+          data.postreDesdeMenu = Object.fromEntries(DIAS_SEMANA.map(d => [d, val]));
+        } else if (!data.postreDesdeMenu) {
+          data.postreDesdeMenu = Object.fromEntries(DIAS_SEMANA.map(d => [d, true]));
+        }
+        setConfig(data);
       } else {
         const defaults = buildDefault();
         await setDoc(ref, defaults);
@@ -102,6 +119,43 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
     setConfig(prev => ({ ...prev, [campo]: prev[campo].filter(x => x !== item) }));
   };
 
+  // --- Postres por día ---
+  const agregarPostreDia = () => {
+    const val = (inputs.postreDia || '').trim().toUpperCase();
+    if (!val) return;
+    if (config.postresPorDia?.[activePostreDia]?.includes(val)) {
+      setModal({ isOpen: true, title: 'Aviso', message: 'Este postre ya existe para este día.', type: 'info' });
+      return;
+    }
+    setConfig(prev => ({
+      ...prev,
+      postresPorDia: {
+        ...prev.postresPorDia,
+        [activePostreDia]: [...(prev.postresPorDia?.[activePostreDia] || []), val].sort()
+      }
+    }));
+    setInputs(prev => ({ ...prev, postreDia: '' }));
+  };
+
+  const eliminarPostreDia = (dia, item) => {
+    setConfig(prev => ({
+      ...prev,
+      postresPorDia: {
+        ...prev.postresPorDia,
+        [dia]: (prev.postresPorDia?.[dia] || []).filter(x => x !== item)
+      }
+    }));
+  };
+
+  const copyPostresToAllDays = () => {
+    const source = config.postresPorDia?.[activePostreDia] || [];
+    setConfig(prev => ({
+      ...prev,
+      postresPorDia: Object.fromEntries(DIAS_SEMANA.map(d => [d, [...source]]))
+    }));
+    setModal({ isOpen: true, title: 'Copiado', message: `Postres de ${activePostreDia} copiados a todos los días.`, type: 'success' });
+  };
+
   // --- Edicion inline ---
   const startEdit = (tipo, index, value, dia) => {
     setEditing({ tipo, index, value, dia });
@@ -118,6 +172,13 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
         const arr = [...(prev.menus[dia] || [])];
         arr[editing.index] = newVal;
         return { ...prev, menus: { ...prev.menus, [dia]: arr.sort() } };
+      });
+    } else if (editing.tipo === 'postresPorDia') {
+      const dia = editing.dia;
+      setConfig(prev => {
+        const arr = [...(prev.postresPorDia?.[dia] || [])];
+        arr[editing.index] = newVal;
+        return { ...prev, postresPorDia: { ...prev.postresPorDia, [dia]: arr.sort() } };
       });
     } else {
       setConfig(prev => {
@@ -224,43 +285,146 @@ const ConfiguracionOpciones = ({ readOnly = false }) => {
       {/* === POSTRES === */}
       <div className="config-section">
         <div className="config-section-header">
-          <h3 className="config-section-title">🍮 Postres <span className="global-badge">Global · todos los días</span></h3>
+          <h3 className="config-section-title">🍮 Postres</h3>
+          {!readOnly && !config.postreDesdeMenu?.[activePostreDia] && (
+            <button className="copy-days-btn" onClick={copyPostresToAllDays} title={`Copiar postres de ${activePostreDia} a todos los días`}>
+              📋 Copiar a todos los días
+            </button>
+          )}
         </div>
+
+        <div className="dia-tabs dia-tabs-postre">
+          {DIAS_SEMANA.map(d => {
+            const esAuto = config.postreDesdeMenu?.[d];
+            return (
+              <button
+                key={d}
+                className={`dia-tab${activePostreDia === d ? ' active' : ''}`}
+                onClick={() => setActivePostreDia(d)}
+              >
+                {d}
+                <span className="dia-tab-count">{esAuto ? '🔄' : (config.postresPorDia?.[d]?.length || 0)}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="config-section-body">
-          {(!config.postres?.length) && <p className="no-items-msg">No hay postres configurados.</p>}
-          <div className="chips-container">
-            {(config.postres || []).map((item, i) => (
-              <div key={i} className="chip chip-postre">
-                {editing && editing.tipo === 'postres' && editing.index === i ? (
-                  <input
-                    className="chip-edit-input"
-                    value={editing.value}
-                    onChange={e => setEditing(prev => ({ ...prev, value: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                    onBlur={saveEdit}
-                    autoFocus
-                  />
-                ) : (
-                  <span onDoubleClick={() => !readOnly && startEdit('postres', i, item)} title="Doble click para editar">{item}</span>
-                )}
-                {!readOnly && !editing && (
-                  <button onClick={() => eliminarGlobal('postres', item)} className="chip-delete">x</button>
-                )}
-              </div>
-            ))}
+          {/* Toggle auto/manual POR DÍA */}
+          <div className="postre-toggle-container">
+            <label className="postre-toggle-label">
+              <span className="postre-toggle-text">
+                {config.postreDesdeMenu?.[activePostreDia]
+                  ? `📋 ${activePostreDia}: postre automático desde el menú`
+                  : `✏️ ${activePostreDia}: postre configurado manualmente`}
+              </span>
+              {!readOnly && (
+                <div
+                  className={`postre-toggle-switch ${config.postreDesdeMenu?.[activePostreDia] ? 'active' : ''}`}
+                  onClick={() => setConfig(prev => ({
+                    ...prev,
+                    postreDesdeMenu: {
+                      ...prev.postreDesdeMenu,
+                      [activePostreDia]: !prev.postreDesdeMenu?.[activePostreDia]
+                    }
+                  }))}
+                >
+                  <div className="postre-toggle-knob" />
+                </div>
+              )}
+            </label>
+            {config.postreDesdeMenu?.[activePostreDia] ? (
+              <p className="postre-toggle-hint">
+                El postre del {activePostreDia.toLowerCase()} se toma automáticamente del menú. Los demás postres (Gelatina, Yogurt) se mantienen fijos.
+              </p>
+            ) : (
+              <p className="postre-toggle-hint" style={{ color: '#FFA000' }}>
+                Configurá manualmente los postres disponibles para {activePostreDia.toLowerCase()}.
+              </p>
+            )}
           </div>
-          {!readOnly && (
-            <div className="chip-input-group">
-              <input
-                type="text"
-                value={inputs.postres}
-                onChange={e => setInputs(prev => ({ ...prev, postres: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && agregarGlobal('postres')}
-                placeholder="Nuevo postre (ej: C/FLAN)..."
-                className="chip-input"
-              />
-              <button onClick={() => agregarGlobal('postres')} className="chip-add-btn">+ Agregar</button>
-            </div>
+
+          {config.postreDesdeMenu?.[activePostreDia] ? (
+            /* Modo auto: mostrar lista global (solo lectura visual) */
+            <>
+              <div className="chips-container">
+                {(config.postres || []).map((item, i) => (
+                  <div key={i} className={`chip chip-postre${item === 'C/POSTRE' ? ' chip-auto' : ''}`}>
+                    {editing && editing.tipo === 'postres' && editing.index === i ? (
+                      <input
+                        className="chip-edit-input"
+                        value={editing.value}
+                        onChange={e => setEditing(prev => ({ ...prev, value: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                        onBlur={saveEdit}
+                        autoFocus
+                      />
+                    ) : (
+                      <span onDoubleClick={() => !readOnly && startEdit('postres', i, item)} title="Doble click para editar">
+                        {item}{item === 'C/POSTRE' ? ' 🔄' : ''}
+                      </span>
+                    )}
+                    {!readOnly && !editing && (
+                      <button onClick={() => eliminarGlobal('postres', item)} className="chip-delete">x</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {!readOnly && (
+                <div className="chip-input-group">
+                  <input
+                    type="text"
+                    value={inputs.postres}
+                    onChange={e => setInputs(prev => ({ ...prev, postres: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && agregarGlobal('postres')}
+                    placeholder="Nuevo postre (ej: C/FLAN)..."
+                    className="chip-input"
+                  />
+                  <button onClick={() => agregarGlobal('postres')} className="chip-add-btn">+ Agregar</button>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Modo manual: postres editables por día */
+            <>
+              {(!config.postresPorDia?.[activePostreDia]?.length) && (
+                <p className="no-items-msg">No hay postres configurados para este día.</p>
+              )}
+              <div className="chips-container">
+                {(config.postresPorDia?.[activePostreDia] || []).map((item, i) => (
+                  <div key={i} className="chip chip-postre">
+                    {editing && editing.tipo === 'postresPorDia' && editing.dia === activePostreDia && editing.index === i ? (
+                      <input
+                        className="chip-edit-input"
+                        value={editing.value}
+                        onChange={e => setEditing(prev => ({ ...prev, value: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                        onBlur={saveEdit}
+                        autoFocus
+                      />
+                    ) : (
+                      <span onDoubleClick={() => !readOnly && startEdit('postresPorDia', i, item, activePostreDia)} title="Doble click para editar">{item}</span>
+                    )}
+                    {!readOnly && !editing && (
+                      <button onClick={() => eliminarPostreDia(activePostreDia, item)} className="chip-delete">x</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {!readOnly && (
+                <div className="chip-input-group">
+                  <input
+                    type="text"
+                    value={inputs.postreDia}
+                    onChange={e => setInputs(prev => ({ ...prev, postreDia: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && agregarPostreDia()}
+                    placeholder="Nuevo postre (ej: C/FLAN)..."
+                    className="chip-input"
+                  />
+                  <button onClick={agregarPostreDia} className="chip-add-btn">+ Agregar</button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
