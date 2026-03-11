@@ -57,14 +57,17 @@ const CierreSemanal = () => {
         const q = query(pedidosRef, where("tipo", "==", "actual"));
         const querySnapshot = await getDocs(q);
 
-        // Guardar pedidos en historial
+        // Guardar pedidos en historial con datos del menú
         const historialRef = collection(db, "historial_pedidos");
+        const menuActualData = menuActualSnap.data();
         for (const docSnapshot of querySnapshot.docs) {
           const pedidoData = docSnapshot.data();
           await addDoc(historialRef, {
             ...pedidoData,
             fechaPedido: new Date(),
-            corteSemana: true
+            corteSemana: true,
+            semana: menuActualData?.semana || '',
+            menuDias: menuActualData?.dias || null,
           });
         }
 

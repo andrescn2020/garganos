@@ -250,13 +250,16 @@ const MenuRotator = () => {
 
       // console.log(`Encontrados ${pedidosSnap.size} pedidos para mover al historial`);
 
-      // Guardar pedidos en el historial
+      // Guardar pedidos en el historial con datos del menú actual
       const historialRef = collection(db, 'historial_pedidos');
+      const menuActualRef2 = doc(db, 'menus', 'menuActual');
+      const menuActualSnap2 = await getDoc(menuActualRef2);
+      const menuActualData = menuActualSnap2.exists() ? menuActualSnap2.data() : null;
       const batch = [];
       
       pedidosSnap.docs.forEach(doc => {
         const pedido = doc.data();
-        // Crear un nuevo documento en el historial con los datos del pedido
+        // Crear un nuevo documento en el historial con los datos del pedido y del menú
         const historialDoc = {
           ...pedido,
           fechaPedido: pedido.fechaCreacion,
@@ -264,7 +267,9 @@ const MenuRotator = () => {
           tipo: pedido.tipo,
           esTardio: pedido.esTardio,
           diasTardios: pedido.diasTardios,
-          uidUsuario: pedido.uidUsuario
+          uidUsuario: pedido.uidUsuario,
+          semana: menuActualData?.semana || '',
+          menuDias: menuActualData?.dias || null,
         };
         batch.push(addDoc(historialRef, historialDoc));
       });

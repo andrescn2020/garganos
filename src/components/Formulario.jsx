@@ -1491,7 +1491,7 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
           </div>
 
           {(() => {
-            // Verificar si hay algÃºn dÃ­a sin pedido y que no sea feriado
+            // Verificar si hay algún día sin pedido y que no sea feriado
             const algunDiaSinPedido = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].some(dia => {
               const esFeriado = menuData?.dias[dia]?.esFeriado;
               const tienePedido = menuActual?.[dia]?.pedido && menuActual?.[dia]?.pedido !== "no_pedir";
@@ -1499,17 +1499,35 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
               const esDiaActualTardio = isCurrentDayAndLate(dia, ahora);
               const estaDisponible = !esDiaPasado && !esDiaActualTardio;
 
-              // Considerar "no_pedir" como una selecciÃ³n vÃlida
+              // Considerar "no_pedir" como una selección válida
               return !esFeriado && estaDisponible && (!tienePedido || data[dia] === "no_pedir");
             });
 
-            // Si es tipo 'proxima', siempre mostrar el botÃ³n
+            const esFinDeSemana = diaSemana === 0 || diaSemana === 6;
+
+            // Si es tipo 'proxima', mostrar el botón (bloqueado en fin de semana)
             if (tipo === 'proxima') {
               return (
                 <button
                   type="submit"
                   className="formulario-boton"
-                  disabled={isSubmitting} /* TEMP: fin de semana habilitado */
+                  disabled={isSubmitting || esFinDeSemana}
+                >
+                  <div className="button-content">
+                    <span>{esFinDeSemana ? "No disponible en fin de semana" : menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
+                    {isSubmitting && <div className="spinner" />}
+                  </div>
+                </button>
+              );
+            }
+
+            // Para tipo 'actual', mostrar el botón solo si hay días disponibles (bloqueado en fin de semana)
+            if (algunDiaSinPedido && !esFinDeSemana) {
+              return (
+                <button
+                  type="submit"
+                  className="formulario-boton"
+                  disabled={isSubmitting}
                 >
                   <div className="button-content">
                     <span>{menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
@@ -1518,22 +1536,6 @@ const Formulario = ({ readOnly = false, tipo = 'actual' }) => {
                 </button>
               );
             }
-
-            // Para tipo 'actual', mostrar el botÃ³n solo si hay dÃ­as disponibles para pedir
-            // if (algunDiaSinPedido) {
-            //   return (
-            //     <button
-            //       type="submit"
-            //       className="formulario-boton"
-            //       disabled={isSubmitting} /* TEMP: fin de semana habilitado */
-            //     >
-            //       <div className="button-content">
-            //         <span>{menuActual ? (isSubmitting ? "Actualizando..." : "Actualizar Pedido") : (isSubmitting ? "Guardando..." : "Guardar Pedido")}</span>
-            //         {isSubmitting && <div className="spinner" />}
-            //       </div>
-            //     </button>
-            //   );
-            // }
 
             return null;
           })()}

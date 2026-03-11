@@ -17,12 +17,14 @@ const HistorialPedidos = () => {
   const [formEdit, setFormEdit] = useState({ lunes: '', martes: '', miercoles: '', jueves: '', viernes: '', precioTotal: 0 });
   const [opcionesMenuConfig, setOpcionesMenuConfig] = useState(null);
   const [precioMenuConfig, setPrecioMenuConfig] = useState(null);
+  const [opcionesCascada, setOpcionesCascada] = useState(null);
   const editFormRef = useRef(null);
 
   useEffect(() => {
     cargarUsuariosYHistorial();
     cargarOpcionesMenu();
     cargarPrecioMenu();
+    cargarOpcionesCascada();
   }, []);
 
   useEffect(() => {
@@ -142,6 +144,112 @@ const HistorialPedidos = () => {
     }
   };
 
+  const cargarOpcionesCascada = async () => {
+    try {
+      const cascadaRef = doc(db, 'config', 'opcionesMenuCascada');
+      const cascadaSnap = await getDoc(cascadaRef);
+      if (cascadaSnap.exists()) {
+        setOpcionesCascada(cascadaSnap.data());
+      }
+    } catch (error) {
+      console.error('Error al cargar opciones cascada:', error);
+    }
+  };
+
+  // Enriquecer el string del pedido con la vianda del menú
+  const enrichWithVianda = (pedidoStr, dia, menuDias) => {
+    try {
+      if (!pedidoStr || !menuDias || !menuDias[dia]) return pedidoStr;
+      const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const diaData = menuDias[dia];
+      if (typeof diaData !== 'object' || diaData === null) return pedidoStr;
+
+      // Obtener la lista de menús configurados para este día
+      const labelMap = { 'lunes': 'Lunes', 'martes': 'Martes', 'miercoles': 'Miercoles', 'jueves': 'Jueves', 'viernes': 'Viernes' };
+      const diaLabel = labelMap[dia] || dia;
+      let menusList = [];
+      if (opcionesCascada?.menus) {
+        const menusKey = Object.keys(opcionesCascada.menus).find(k => norm(k) === norm(diaLabel)) || diaLabel;
+        menusList = opcionesCascada.menus[menusKey] || [];
+      }
+
+      // Encontrar qué menú tipo matchea el inicio del pedido
+      let menuTipo = '';
+      const pedidoUpper = pedidoStr.toUpperCase();
+      for (const m of menusList) {
+        if (norm(pedidoUpper).startsWith(norm(m))) {
+          menuTipo = m;
+          break;
+        }
+      }
+      if (!menuTipo) return pedidoStr;
+
+      // Buscar la vianda en menuDias[dia] que corresponda a este tipo de menú
+      // Las claves en menuDias[dia] son: opcion1, opcionpebetex2, pastas, light, clasico, etc.
+      // Usamos un mapeo explícito nombre→clave para buscar la vianda
+      let viandaDesc = '';
+      const menuNorm = norm(menuTipo);
+
+      // Mapeo explícito de nombres de menú a claves de Firestore
+      const mappings = [
+        { names: ['beti jai'], keys: ['opcion1'] },
+        { names: ['menu pbt', 'pbt', 'opcion pebete', 'pebete'], keys: ['opcionpebetex2'] },
+        { names: ['pastas', 'pasta'], keys: ['pastas', 'pasta'] },
+        { names: ['light'], keys: ['light'] },
+        { names: ['clasico', 'clásico'], keys: ['clasico'] },
+        { names: ['ensalada'], keys: ['ensaladas', 'ensalada'] },
+        { names: ['dieta blanda'], keys: ['dietaBlanda', 'dieta_blanda', 'dietablanda'] },
+        { names: ['sand de miga', 'sandwich', 'sand miga'], keys: ['sandwichMiga'] },
+      ];
+
+      for (const mapping of mappings) {
+        if (mapping.names.some(n => menuNorm.includes(norm(n)))) {
+          for (const k of mapping.keys) {
+            const val = diaData[k];
+            if (val && typeof val === 'string') {
+              viandaDesc = val;
+              break;
+            }
+            // Handle object values (sandwichMiga has {tipo, cantidad})
+            if (val && typeof val === 'object' && val.tipo) {
+              viandaDesc = `${val.tipo}. ${val.cantidad || ''} triángulos`.trim();
+              break;
+            }
+          }
+          if (viandaDesc) break;
+        }
+      }
+
+      // Fallback genérico: intentar matchear por nombre de clave normalizado
+      if (!viandaDesc) {
+        for (const [key, value] of Object.entries(diaData)) {
+          if (key === 'esFeriado' || key === 'postre') continue;
+          if (typeof value !== 'string') continue;
+          const keyNorm = norm(key.replace(/([A-Z])/g, ' $1').trim());
+          if (menuNorm.includes(keyNorm) || keyNorm.includes(menuNorm)) {
+            viandaDesc = value;
+            break;
+          }
+        }
+      }
+
+      if (!viandaDesc) return pedidoStr;
+
+      // Limpiar la descripción de la vianda (tomar solo la primera oración)
+      const viandaClean = viandaDesc.split('.')[0].trim();
+      if (!viandaClean) return pedidoStr;
+
+      // Insertar la vianda después del nombre del menú
+      // "BETI JAI C/FLAN Y COCA" → "BETI JAI (Milanesa con puré) C/FLAN Y COCA"
+      const restOfOrder = pedidoStr.substring(menuTipo.length).trim();
+      return `${menuTipo} (${viandaClean}) ${restOfOrder}`.trim();
+    } catch (error) {
+      // En caso de cualquier error, devolver el string original sin enriquecer
+      console.error('Error al enriquecer pedido con vianda:', error);
+      return pedidoStr;
+    }
+  };
+
   const formatearFecha = (timestamp) => {
     if (!timestamp) return 'Fecha desconocida';
     try {
@@ -163,17 +271,21 @@ const HistorialPedidos = () => {
     }
   };
 
-  const formatearOpcion = (opcion) => {
+  const formatearOpcion = (opcion, dia = null, menuDias = null) => {
     if (!opcion) return 'No seleccionado';
+    let pedidoStr = '';
     if (typeof opcion === 'object') {
       if (opcion.pedido === 'no_pedir') return 'No pidió';
-      // Buscar el label en opcionesMenu y opcionesMenuCompleto
-      const found = [...opcionesMenuConfig?.Lunes, ...opcionesMenuConfig?.Martes, ...opcionesMenuConfig?.['Miércoles'], ...opcionesMenuConfig?.Jueves, ...opcionesMenuConfig?.Viernes].find(opt => opt.value === opcion.pedido);
-      return found ? found.label.toUpperCase() : opcion.pedido.replace(/_/g, ' ').toUpperCase();
+      pedidoStr = opcion.pedido?.replace(/_/g, ' ')?.toUpperCase() || '';
+    } else {
+      if (opcion === 'no_pedir') return 'No pidió';
+      pedidoStr = opcion.replace(/_/g, ' ').toUpperCase();
     }
-    if (opcion === 'no_pedir') return 'No pidió';
-    const found = [...opcionesMenuConfig?.Lunes, ...opcionesMenuConfig?.Martes, ...opcionesMenuConfig?.['Miércoles'], ...opcionesMenuConfig?.Jueves, ...opcionesMenuConfig?.Viernes].find(opt => opt.value === opcion);
-    return found ? found.label.toUpperCase() : opcion.replace(/_/g, ' ').toUpperCase();
+    // Enriquecer con vianda si hay datos del menú disponibles
+    if (dia && menuDias) {
+      pedidoStr = enrichWithVianda(pedidoStr, dia, menuDias);
+    }
+    return pedidoStr;
   };
 
   const formatearMesAnio = (timestamp) => {
@@ -650,11 +762,11 @@ const HistorialPedidos = () => {
                       </span>
                     </div>
                     <div className="pedido-dias">
-                      <div className="dia-pedido"><strong>Lunes:</strong> {formatearOpcion(pedido.lunes)}</div>
-                      <div className="dia-pedido"><strong>Martes:</strong> {formatearOpcion(pedido.martes)}</div>
-                      <div className="dia-pedido"><strong>Miércoles:</strong> {formatearOpcion(pedido.miercoles)}</div>
-                      <div className="dia-pedido"><strong>Jueves:</strong> {formatearOpcion(pedido.jueves)}</div>
-                      <div className="dia-pedido"><strong>Viernes:</strong> {formatearOpcion(pedido.viernes)}</div>
+                      <div className="dia-pedido"><strong>Lunes:</strong> {formatearOpcion(pedido.lunes, 'lunes', pedido.menuDias)}</div>
+                      <div className="dia-pedido"><strong>Martes:</strong> {formatearOpcion(pedido.martes, 'martes', pedido.menuDias)}</div>
+                      <div className="dia-pedido"><strong>Miércoles:</strong> {formatearOpcion(pedido.miercoles, 'miercoles', pedido.menuDias)}</div>
+                      <div className="dia-pedido"><strong>Jueves:</strong> {formatearOpcion(pedido.jueves, 'jueves', pedido.menuDias)}</div>
+                      <div className="dia-pedido"><strong>Viernes:</strong> {formatearOpcion(pedido.viernes, 'viernes', pedido.menuDias)}</div>
                     </div>
                     <div className="pedido-footer">
                       <span className="precio-total">Total: ${pedido.precioTotal || 0}</span>
