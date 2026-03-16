@@ -282,11 +282,6 @@ const AdminDashboard = ({ userRole }) => {
               const historialRef = collection(db, "historial_pedidos");
               for (const docSnapshot of querySnapshot.docs) {
                 const pedidoData = docSnapshot.data();
-                // console.log('Procesando pedido:', {
-                //   id: docSnapshot.id,
-                //   tipoActual: pedidoData.tipo,
-                //   uidUsuario: pedidoData.uidUsuario
-                // });
 
                 const nuevoPedidoRef = doc(db, "pedidos", docSnapshot.id);
 
@@ -297,19 +292,15 @@ const AdminDashboard = ({ userRole }) => {
                   fechaFinalizacion: new Date()
                 };
 
-                // console.log('Actualizando pedido con datos:', pedidoActualizado);
-
                 // Actualizar el pedido completamente
                 await setDoc(nuevoPedidoRef, pedidoActualizado);
-                // console.log('Pedido actualizado exitosamente');
 
                 // Guardar en historial
                 await addDoc(historialRef, {
                   ...pedidoData,
                   fechaPedido: new Date(),
-                  corteSemana: true // puedes usar este flag para distinguir los cortes semanales
+                  corteSemana: true
                 });
-                // console.log('Pedido guardado en historial');
               }
 
               // Copiar el menú de próxima semana como menú actual
@@ -377,7 +368,7 @@ const AdminDashboard = ({ userRole }) => {
       case 'pedidosTardios':
         return <VerPedidos tipo="tardio" readOnly={isVisor} />;
       case 'historial':
-        return <HistorialPedidos />;
+        return <HistorialPedidos readOnly={isVisor} />;
       case 'estructuraMenu':
         return <MenuStructureManager readOnly={isVisor} />;
       case 'precioMenu':
